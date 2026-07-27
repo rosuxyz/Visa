@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Caption bar animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.caption-word {
+  animation: fadeIn 0.15s ease-out;
+}
+
+/* Question transition */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.question-enter {
+  animation: slideUp 0.3s ease-out;
+}
+
+/* Pulse for recording indicator */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.pulse-dot {
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+/* Score bar fill animation */
+@keyframes fillBar {
+  from { width: 0%; }
+}
+
+.score-bar-fill {
+  animation: fillBar 0.8s ease-out forwards;
+}
+
+/* ── ECO Avatar animations ─────────────────────────────────── */
+
+/* Spinning conic border when speaking */
+@keyframes ecoRingSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Subtle breathing when idle */
+@keyframes ecoBreathe {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.018); }
+}
+
+/* Gentle head nod when speaking */
+@keyframes ecoNod {
+  0%   { transform: translateY(0px) rotate(0deg); }
+  40%  { transform: translateY(-2px) rotate(0.8deg); }
+  100% { transform: translateY(-1px) rotate(-0.6deg); }
+}
+
+/* Audio wave bars */
+@keyframes ecoWaveBar {
+  0%, 100% { height: 4px; opacity: 0.5; }
+  50%       { height: 18px; opacity: 1; }
+}
+
+/* Speaking indicator dot */
+@keyframes ecoDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.8); }
+}
+
+/* Scrollbar styling for dark panels */
+.dark-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.dark-scroll::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.05);
+  border-radius: 3px;
+}
+.dark-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.15);
+  border-radius: 3px;
+}
+.dark-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.25);
+}
