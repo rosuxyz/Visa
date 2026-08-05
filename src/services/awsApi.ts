@@ -193,7 +193,7 @@ RULES:
 // ── Sample answer ─────────────────────────────────────────────────────────────
 export async function getSampleAnswer(
   question: string,
-  visaType: string,
+  _visaType: string,
   userContext: string
 ): Promise<string> {
   const contextBlock = userContext.trim()
