@@ -8,7 +8,9 @@ import { ProgressPage }  from './pages/ProgressPage';
 import { DocumentPage }  from './pages/DocumentPage';
 import { PreparePage }   from './pages/PreparePage';
 import { LoginPage }     from './pages/LoginPage';
-import { ProfilePage }   from './pages/ProfilePage';
+import { ProfilePage }      from './pages/ProfilePage';
+import { CaptionTestPage } from './pages/CaptionTestPage';
+import { RevisionPage }    from './pages/RevisionPage';
 import { useAuthStore }  from './store/authStore';
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
@@ -83,6 +85,8 @@ export default function App() {
             <Route path="/prepare"   element={<RequireAuth><PreparePage /></RequireAuth>} />
             <Route path="/document"  element={<RequireAuth><DocumentPage /></RequireAuth>} />
             <Route path="/profile"   element={<RequireAuth><ProfilePage /></RequireAuth>} />
+            <Route path="/captions"  element={<RequireAuth><CaptionTestPage /></RequireAuth>} />
+            <Route path="/revision"  element={<RequireAuth><RevisionPage /></RequireAuth>} />
             <Route path="*"          element={<Navigate to="/" replace />} />
           </Routes>
         </AuthGate>

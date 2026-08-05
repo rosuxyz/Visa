@@ -25,11 +25,9 @@ export function InterviewPage() {
   useEffect(() => {
     if (!interviewStartedRef.current) return;
     if (flow.isSpeaking) {
-      // Belt-and-suspenders: stop mic if somehow still running
       speech.stop();
       speech.resetTranscript();
     } else {
-      // Wait 400ms after TTS ends before opening mic — prevents tail-echo capture
       const id = setTimeout(() => {
         if (interviewStartedRef.current) speech.start();
       }, 400);
@@ -40,7 +38,6 @@ export function InterviewPage() {
   // Guard: must have custom questions before interviewing
   const { customQuestions } = useInterviewStore();
   useEffect(() => {
-    // Small delay lets Zustand rehydrate from localStorage before we check
     const id = setTimeout(() => {
       if (customQuestions.length === 0) navigate('/prepare', { replace: true });
     }, 100);
@@ -54,7 +51,6 @@ export function InterviewPage() {
       startedRef.current = true;
       interviewStartedRef.current = true;
       flow.startInterview(selectedType);
-      // Mic will auto-start once isSpeaking goes false after first question TTS
     }
   }, [webcam.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -62,17 +58,29 @@ export function InterviewPage() {
     webcam.requestAccess();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Called by QuestionPanel when user hits Submit — stop mic, enter review mode
+  const handleStopMic = () => {
+    speech.stop();
+  };
+
+  // Called by QuestionPanel when user retakes the same question
+  const handleRetake = () => {
+    speech.resetTranscript();
+    speech.start();
+  };
+
+  // Called by QuestionPanel after review — advance to next question
   const handleNext = () => {
     const transcript = transcriptRef.current;
-    // Stop mic immediately — before TTS starts for the next question
-    speech.stop();
     speech.resetTranscript();
     flow.nextQuestion(transcript);
   };
 
+  // Called by QuestionPanel after review on last question
   const handleEnd = () => {
     const transcript = transcriptRef.current;
     speech.stop();
+    speech.resetTranscript();
     webcam.stopAllTracks();
     flow.endInterview(transcript);
   };
@@ -137,6 +145,9 @@ export function InterviewPage() {
                 currentIndex={flow.currentIndex}
                 total={flow.questions.length}
                 questions={flow.questions}
+                currentTranscript={speech.fullTranscript}
+                onStopMic={handleStopMic}
+                onRetake={handleRetake}
                 onRepeat={() => { speech.stop(); speech.resetTranscript(); flow.speakQuestion(flow.currentQuestion!.question); }}
                 onNext={handleNext}
                 isLastQuestion={isLastQuestion}

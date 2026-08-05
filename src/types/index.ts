@@ -23,7 +23,14 @@ export interface AIFeedback {
   grammarScore: number;       // 0–100
   confidenceScore: number;    // 0–100
   relevanceScore: number;     // 0–100
+  coherenceScore: number;     // 0–100
   feedback: string;
+  // Extended fields — present on new evaluations, may be absent on cached ones
+  strengths?: string[];        // 1–2 specific things the candidate did well
+  weaknesses?: string[];       // 1–2 specific things to fix
+  missedPoints?: string[];     // key facts the ECO expected but were absent
+  rewriteSuggestion?: string;  // one concrete rephrased sentence
+  verdict?: 'Pass' | 'Borderline' | 'Fail'; // ECO likely verdict on this answer
 }
 
 export type InterviewStatus = 'idle' | 'active' | 'ended';

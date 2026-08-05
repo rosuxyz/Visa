@@ -49,6 +49,20 @@ export function LandingPage() {
               <span>👤</span>
               <span className="hidden sm:inline">Profile</span>
             </button>
+            <button
+              onClick={() => navigate('/revision')}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-gray-600 hover:text-amber-700 hover:bg-amber-50 transition-all"
+            >
+              <span>📚</span>
+              <span className="hidden sm:inline">Revision</span>
+            </button>
+            <button
+              onClick={() => navigate('/captions')}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-gray-600 hover:text-purple-700 hover:bg-purple-50 transition-all"
+            >
+              <span>🎤</span>
+              <span className="hidden sm:inline">Captions</span>
+            </button>
           </nav>
         </div>
       </header>

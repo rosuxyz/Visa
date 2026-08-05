@@ -81,32 +81,112 @@ export async function getAIFeedback(
   question: string,
   transcript: string
 ): Promise<AIFeedback> {
+  const answered = transcript?.trim();
+  const answerBlock = answered
+    ? `CANDIDATE'S ANSWER:\n"${answered}"`
+    : `CANDIDATE'S ANSWER: (silent — no answer given)`;
+
   const text = await chat([{
     role: 'user',
-    content: `You are an expert UK visa interview coach. Evaluate this interview answer and return a JSON object.
+    content: `You are a senior UK Entry Clearance Officer (ECO) evaluating a visa interview answer. Your job is to assess whether the answer convinces you — as a real interviewer — that this person is genuine, prepared, and meets the visa requirements.
 
-Question: ${question}
+IMPORTANT: You are NOT an English teacher. Grammar and accent do not matter. Many genuine applicants speak English as a second language. What matters is the CONTENT — are they giving you the real facts and reasons you need to approve their visa?
 
-Candidate's Answer: ${transcript || '(no answer provided)'}
+━━━ INTERVIEW CONTEXT ━━━
+QUESTION ASKED: ${question}
 
-Return ONLY a valid JSON object with exactly these fields:
-- grammarScore: number 0-100 (clarity, grammar, vocabulary)
-- confidenceScore: number 0-100 (directness, specificity, assertive tone)
-- relevanceScore: number 0-100 (how directly it addresses the UK visa question)
-- feedback: string (2-3 sentences of specific, actionable advice for UK visa interviews)
+${answerBlock}
 
-Example: {"grammarScore":78,"confidenceScore":65,"relevanceScore":82,"feedback":"Your answer covers the key points clearly. Mention your exact salary and how it exceeds the Home Office threshold. Avoid vague terms — precise figures reassure the ECO."}`,
-  }], TEXT_MODELS);
+━━━ HOW TO SCORE (0–100 each) ━━━
+
+**grammarScore** — Basic communication clarity (NOT grammar pedantry)
+This is LOW weight. Only penalise if the answer is so unclear you genuinely cannot understand the intended meaning.
+- 80–100: Understandable regardless of grammatical perfection — the message is clear
+- 50–79: Mostly clear but some phrases are confusing
+- 20–49: Hard to understand, meaning is frequently lost
+- 0–19: Incomprehensible or silent
+Ignore: tense errors, missing articles, accent, non-native phrasing. Score 80+ unless you truly cannot understand them.
+
+**confidenceScore** — Does the candidate sound like they believe their own story?
+Real ECOs flag applicants who sound unsure of their own plans. Assess: do they state facts directly? Or do they hedge, guess, and qualify everything?
+- 90–100: States facts directly ("I have £28,000 in HSBC"), sounds prepared and certain
+- 70–89: Mostly confident, one or two unnecessary qualifications
+- 45–69: Sounds somewhat uncertain, hedges on things they should know ("I think maybe…")
+- 20–44: Sounds like they are guessing or unsure of basic facts about their own application
+- 0–19: Silent or completely evasive
+
+**relevanceScore** — Did they actually answer the question? (HIGHEST WEIGHT)
+This is what matters most to an ECO. Did they address what was asked? Did they provide the specific facts needed?
+- 90–100: Directly and completely answers what was asked with specific facts (names, amounts, dates, plans)
+- 70–89: Answers the main point; one secondary aspect missing
+- 45–69: Partially answers — hits some parts but skips key details the ECO specifically asked about
+- 20–44: Loosely related but doesn't really address the question
+- 0–19: Off-topic, silent, or so vague it tells the ECO nothing
+
+**coherenceScore** — Does the answer make logical sense as a story?
+ECOs are trained to spot inconsistencies. Does the answer hang together? Does it contradict anything? Is it a believable, coherent account?
+- 90–100: Clear, logical, self-consistent — tells a believable story
+- 70–89: Mostly coherent, one slightly unclear transition
+- 45–69: Some disorganisation or internal inconsistency
+- 20–44: Hard to follow, contradictory, or jumps around without connecting ideas
+- 0–19: Incoherent or absent
+
+━━━ ECO VERDICT ━━━
+After reading this answer, what would a real ECO think?
+- "Pass" — Satisfying answer. ECO would move on without concern.
+- "Borderline" — Answer is okay but ECO would mentally flag this applicant for a follow-up question.
+- "Fail" — Answer raises a red flag. ECO would doubt the application or want to probe much deeper.
+
+━━━ OUTPUT — return ONLY this JSON, nothing else ━━━
+{
+  "grammarScore": <0-100>,
+  "confidenceScore": <0-100>,
+  "relevanceScore": <0-100>,
+  "coherenceScore": <0-100>,
+  "verdict": "<Pass|Borderline|Fail>",
+  "strengths": ["<one specific thing this answer did well — quote the candidate's words if useful>"],
+  "weaknesses": ["<the single most important content gap or problem — be concrete>"],
+  "missedPoints": ["<a key fact the ECO expected to hear but was absent from the answer>"],
+  "rewriteSuggestion": "<a single example sentence showing how to open or strengthen this answer — must be something the candidate could actually say>",
+  "feedback": "<2-3 sentences of direct coaching: what content the answer needs, what would make the ECO more satisfied, one specific improvement — written conversationally to the student>"
+}
+
+RULES:
+- Silent/no answer: all scores 0, verdict "Fail"
+- Never inflate scores to be encouraging — the candidate needs honest assessment to prepare
+- strengths/weaknesses/missedPoints must be about the CONTENT of this specific answer, never generic
+- rewriteSuggestion must be a real spoken sentence, not meta-instructions like "explain your funding source"
+- Do NOT penalise non-native English grammar — only penalise if meaning is genuinely lost`,
+  }], TEXT_MODELS, 1200);
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error('Could not parse feedback from AI response');
 
-  const parsed = JSON.parse(jsonMatch[0]) as AIFeedback;
+  const parsed = JSON.parse(jsonMatch[0]) as Partial<AIFeedback> & {
+    verdict?: string;
+    strengths?: unknown;
+    weaknesses?: unknown;
+    missedPoints?: unknown;
+    rewriteSuggestion?: unknown;
+  };
+
+  const clamp = (n: unknown) => Math.min(100, Math.max(0, Number(n) || 0));
+  const toStrArr = (v: unknown): string[] =>
+    Array.isArray(v) ? v.slice(0, 3).map(String).filter(Boolean) : [];
+
   return {
-    grammarScore:    Math.min(100, Math.max(0, Number(parsed.grammarScore)    || 0)),
-    confidenceScore: Math.min(100, Math.max(0, Number(parsed.confidenceScore) || 0)),
-    relevanceScore:  Math.min(100, Math.max(0, Number(parsed.relevanceScore)  || 0)),
-    feedback: String(parsed.feedback || ''),
+    grammarScore:       clamp(parsed.grammarScore),
+    confidenceScore:    clamp(parsed.confidenceScore),
+    relevanceScore:     clamp(parsed.relevanceScore),
+    coherenceScore:     clamp(parsed.coherenceScore),
+    feedback:           String(parsed.feedback || ''),
+    verdict:            (['Pass', 'Borderline', 'Fail'].includes(String(parsed.verdict))
+                          ? parsed.verdict as 'Pass' | 'Borderline' | 'Fail'
+                          : undefined),
+    strengths:          toStrArr(parsed.strengths),
+    weaknesses:         toStrArr(parsed.weaknesses),
+    missedPoints:       toStrArr(parsed.missedPoints),
+    rewriteSuggestion:  parsed.rewriteSuggestion ? String(parsed.rewriteSuggestion) : undefined,
   };
 }
 
@@ -189,42 +269,97 @@ Example: {"overallScore":72,"readinessLevel":"Almost There","strengths":["Clear 
 }
 
 // ── Generate questions from personal details ──────────────────────────────────
+// Human-readable labels for each detail key — mirrors PREPARE_FIELDS
+const DETAIL_LABELS: Record<string, string> = {
+  visaType:       'Visa type applying for',
+  course:         'Course / programme',
+  university:     'University / institution',
+  courseStart:    'Course start date',
+  courseDuration: 'Course duration',
+  funding:        'How studies are funded',
+  sponsor:        'Sponsor name & relationship',
+  english:        'English test & score',
+  hometies:       'Ties to home country',
+  futurePlans:    'Plans after visa / studies end',
+  prevVisas:      'Previous UK / other country visas',
+  extraInfo:      'Additional relevant details',
+};
+
 export async function generateQuestionsFromDetails(
-  details: Record<string, string>
+  details: Record<string, string>,
+  sessionNum = 0,
+  usedQuestions: string[] = []
 ): Promise<import('../types').Question[]> {
   const lines = Object.entries(details)
     .filter(([, v]) => v.trim())
-    .map(([k, v]) => `${k}: ${v}`)
+    .map(([k, v]) => `${DETAIL_LABELS[k] ?? k}: ${v}`)
     .join('\n');
+
+  const avoidBlock = usedQuestions.length > 0
+    ? `\nAVOID — these questions were used in previous sessions, do NOT repeat or paraphrase any of them:\n${usedQuestions.slice(-30).map((q, i) => `${i + 1}. ${q}`).join('\n')}\n`
+    : '';
+
+  // Different angle seed per session so the model explores different dimensions
+  const SESSION_ANGLES = [
+    'Focus heavily on motivation and future plans this session.',
+    'Focus heavily on financial details and sponsor credibility this session.',
+    'Focus heavily on ties to home country and accommodation this session.',
+    'Focus heavily on course knowledge and credibility probes this session.',
+    'Focus heavily on travel history, English proficiency, and consistency this session.',
+  ];
+  const angleHint = SESSION_ANGLES[sessionNum % SESSION_ANGLES.length];
 
   const text = await chat([{
     role: 'user',
-    content: `You are a strict UK Entry Clearance Officer (ECO) conducting a real visa interview. Based on the applicant's personal details below, generate between 15 and 20 interview questions you would ask them.
+    content: `You are a senior UK Entry Clearance Officer (ECO) conducting a visa interview at a British embassy. You are professional, methodical, and mildly skeptical. Your job is to verify the applicant's story is genuine and consistent.
 
-APPLICANT DETAILS:
+APPLICANT'S PROFILE:
 ${lines}
 
-INSTRUCTIONS:
-- Every question MUST directly reference at least one specific detail the applicant provided (their university name, exact course, sponsor's name, fund amount, future plans, etc.)
-- Do NOT generate generic visa questions — every question must be personalised and verifiable against their stated details
-- Ask questions that probe credibility: does the story hang together? Are funds sufficient? Will they return home?
-- Cover these angles: purpose of visit, choice of institution/course, financial sufficiency, sponsor credibility, ties to home country, future plans after visa ends, English ability, previous travel or refusals, course relevance to career, why this specific university
-- Questions should feel adversarial but professional — an ECO trying to verify, not trip up
-- Vary the difficulty: some easy factual checks, some deeper probing questions, some follow-up style questions that build on earlier ones
-- Generate exactly 18 questions
-- Return ONLY a valid JSON array of 18 objects, each with:
-  - id: number (1–18)
-  - category: one of: Purpose, Finances, Ties, Education, Employment, Sponsor, Future Plans, History, English, Credibility
-  - question: string (the exact question, using the applicant's specific details)
+SESSION: ${sessionNum + 1}
+${angleHint}
+${avoidBlock}
+TASK: Write exactly 10 fresh interview questions tailored to THIS specific applicant for this session.
 
-Example for a student with saved £25,000 at Barclays:
-[{"id":1,"category":"Finances","question":"You've stated you have £25,000 saved at Barclays — can you walk me through how you accumulated that amount and confirm it covers your full first year of fees and living costs?"}]`,
-  }], TEXT_MODELS, 3000);
+━━━ COVERAGE (choose based on the session angle above) ━━━
+Always include at least one question from each of these areas:
+- Purpose & motivation (why UK, why now, why this course)
+- Finances (exact amounts, source, duration, what if funding falls short)
+- Ties to home country (concrete anchors — family, property, job, business)
+- Future plans after visa ends (specific role, employer, location, why return)
+- One credibility probe (challenge a gap, vague claim, or inconsistency in their profile)
+
+Fill remaining questions with whatever the session angle requires.
+
+━━━ QUESTION QUALITY RULES ━━━
+PERSONALISATION (critical):
+- Use the applicant's EXACT data in every question: real university name, course title, exact amounts, sponsor's name, country, dates
+- Never say "your university", "the course", "[amount]" — always use the real value
+- If a field is blank, ask about it rather than skip it
+
+TONE & VARIETY:
+- Sound like a real human across a desk — conversational, direct, occasionally challenging
+- Mix openers: "Walk me through…", "How much exactly…", "That's a significant sum — can you explain…", "What specifically attracted you to…", "If [scenario], what would you do?"
+- Vary sentence structure — no two questions should start the same way
+- The 10 questions should feel like a coherent, natural 8-minute interview conversation
+
+STRICT PROHIBITIONS:
+- Never ask about documents or paperwork
+- Never repeat a question from the AVOID list above (even paraphrased)
+- No placeholders like [university], [amount], [country]
+- No generic questions answerable by any applicant
+
+━━━ OUTPUT FORMAT ━━━
+Return ONLY a valid JSON array of exactly 10 objects, no prose:
+[{"id":1,"category":"Purpose","question":"..."},...]
+
+Category must be one of: Purpose, Education, Finances, Sponsor, Accommodation, Ties, Future Plans, History, Credibility`,
+  }], TEXT_MODELS, 2500);
 
   const match = text.match(/\[[\s\S]*\]/);
   if (!match) throw new Error('Could not parse questions from AI response');
   const parsed = JSON.parse(match[0]) as import('../types').Question[];
-  return parsed.slice(0, 20).map((q, i) => ({
+  return parsed.slice(0, 10).map((q, i) => ({
     id: i + 1,
     category: String(q.category || 'General'),
     question: String(q.question || ''),
