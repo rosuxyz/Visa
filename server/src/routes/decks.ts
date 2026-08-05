@@ -7,7 +7,7 @@ import { requireAuth } from '../auth';
 import type { AuthRequest } from '../auth';
 
 const UPLOADS_DIR = path.join(__dirname, '..', '..', 'uploads');
-const GROQ_KEY = 'REMOVED_USE_ENV_GROQ_API_KEY';
+const GROQ_KEY = process.env.GROQ_API_KEY ?? '';
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const TEXT_MODELS = ['llama-3.3-70b-versatile', 'qwen/qwen3.6-27b', 'openai/gpt-oss-120b', 'llama-3.1-8b-instant'];
 
